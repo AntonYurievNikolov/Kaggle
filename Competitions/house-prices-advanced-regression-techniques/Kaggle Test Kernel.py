@@ -35,7 +35,20 @@ non_categorical_columns = train.columns[~categorical_mask].tolist()
 
 ###START OF FEATURE ENGINEERING  taken from "Stacked Regressions : Top 4% on LeaderBoard" Kernel
 #Remove ouliers
-train = train.drop(train[(train['GrLivArea']>4000) & (train['SalePrice']<300000)].index)
+#train = train.drop(train[(train['GrLivArea']>4000) & (train['SalePrice']<300000)].index)
+train = train[train.GrLivArea < 4500]
+train.reset_index(drop=True, inplace=True)
+
+outliers = [30, 88, 462, 631, 1322]
+train = train.drop(train.index[outliers])
+
+# will deal with more subtle outlers later.
+train = train[train.GrLivArea < 4500]
+train.reset_index(drop=True, inplace=True)
+
+# Removes outliers 
+outliers = [30, 88, 462, 631, 1322]
+train = train.drop(train.index[outliers])
 #SCALE THE TARGET
 train["SalePrice"] = np.log1p(train["SalePrice"])
 
@@ -46,6 +59,9 @@ all_data = pd.concat((train, test),sort=True).reset_index(drop=True)
 all_data.drop(['SalePrice'], axis=1, inplace=True)
 
 #Handling Missing data
+# Not normaly distributed can not be normalised and has no central tendecy - Potentially will try this as well
+#all_data = all_data.drop(['MasVnrArea', 'OpenPorchSF', 'WoodDeckSF', 'BsmtFinSF1','2ndFlrSF'], axis=1)
+
 all_data["PoolQC"] = all_data["PoolQC"].fillna("None")
 all_data["MiscFeature"] = all_data["MiscFeature"].fillna("None")
 all_data["Alley"] = all_data["Alley"].fillna("None")
@@ -101,7 +117,7 @@ for c in cols:
 numeric_feats = all_data.dtypes[all_data.dtypes != "object"].index
 skewed_feats = all_data[numeric_feats].apply(lambda x: skew(x.dropna())).sort_values(ascending=False)
 skewness = pd.DataFrame({'Skew' :skewed_feats})
-skewness = skewness[abs(skewness) > 0.75]
+skewness = skewness[abs(skewness) > 0.50]#0.75 in the Original
 from scipy.special import boxcox1p
 skewed_features = skewness.index
 lam = 0.15
@@ -227,7 +243,7 @@ def get_new_model ():
 #TESTING FEW LR
 #Optimizing the model
 lr_to_test = [0.001, 0.002, 0.003]
-early_stopping_monitor = EarlyStopping(monitor='mean_squared_error',patience=2)
+early_stopping_monitor = EarlyStopping(monitor='mean_squared_error',patience=50)
 
 #for lr in lr_to_test:
 #    print('\n\nTesting model with learning rate: %f\n'%lr )
@@ -247,7 +263,7 @@ keras_model.fit(X, y,
                 epochs=1,#Add 200 Again when we use this again
                 callbacks=[early_stopping_monitor])
 keras_pred=np.expm1(keras_model.predict(test))
-#ks.models.save_model(keras_model,'200 epochs 0.074250 RMSE.h5')
+#ks.models.save_model(keras_model,'1000 epochs 0.060410 RMSE.h5')
 
 #FIT AND PREDICT THE VALUES
 
@@ -275,14 +291,16 @@ print('\n Keras RMSE: %f\n'%np.sqrt(mean_squared_error(y_train, keras_train)))
 print('RMSLE score on train data:')
 print(rmsle(y_train,stacked_train_pred*0.70 +
                xgb_train_pred*0.15 + lgb_train_pred*0.15 ))
-ensembleDF = pd.DataFrame([stacked_train_pred,xgb_train_pred,lgb_train_pred]).transpose()
-ensemblePredict = pd.DataFrame([stacked_pred,xgb_pred,lgb_pred]).transpose()
-better_ensemble = make_pipeline(RobustScaler(), LinearRegression())
-better_ensemble.fit(ensembleDF,y)
-better_ensemble_train_pred = better_ensemble.predict(ensembleDF)
-print('\n Other Ensemble RMSLSE: %f\n'%rmsle(y, better_ensemble_train_pred))
 
-ensemble = better_ensemble.predict(ensemblePredict)
+#ADDING ADDITIONAL STACK FOR THE FINAL PRECITIONS
+#ensembleDF = pd.DataFrame([stacked_train_pred,xgb_train_pred,lgb_train_pred,keras_train]).transpose()
+#ensemblePredict = pd.DataFrame([stacked_pred,xgb_pred,lgb_pred,keras_pred]).transpose()
+#better_ensemble = lasso#make_pipeline(RobustScaler(), LinearRegression())
+#better_ensemble.fit(ensembleDF,y)
+#better_ensemble_train_pred = better_ensemble.predict(ensembleDF)
+#print('\n Other Ensemble RMSLSE: %f\n'%rmsle(y, better_ensemble_train_pred))
+##0.072482
+#ensemble = better_ensemble.predict(ensemblePredict)
 #Better Ensemble?
 #better_ensemble_predict = np.expm1(better_ensemble.predict(test.values))
 #Keras MSE:     0.005513
@@ -295,7 +313,7 @@ ensemble = better_ensemble.predict(ensemblePredict)
 #for i in range(1459) :
 #    ensemble[i] = keras_pred[i]*0.5 + xgb_pred[i]*0.5
 
-#ensemble = stacked_pred*0.70 + xgb_pred*0.15 + lgb_pred*0.15 
+ensemble = stacked_pred*0.70 + xgb_pred*0.15 + lgb_pred*0.15 
 sub = pd.DataFrame()
 sub['Id'] = test_ID
 sub['SalePrice'] = ensemble
