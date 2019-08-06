@@ -291,7 +291,10 @@ print('\n Keras RMSE: %f\n'%np.sqrt(mean_squared_error(y_train, keras_train)))
 print('RMSLE score on train data:')
 print(rmsle(y_train,stacked_train_pred*0.70 +
                xgb_train_pred*0.15 + lgb_train_pred*0.15 ))
-
+#print(np.mean(np.expm1(y_train)-np.expm1((stacked_train_pred*0.70 +
+#               xgb_train_pred*0.15 + lgb_train_pred*0.15 ))))
+#print(np.std(np.expm1(y_train)-np.expm1((stacked_train_pred*0.70 + 
+#                   xgb_train_pred*0.15 + lgb_train_pred*0.15 ))))
 #ADDING ADDITIONAL STACK FOR THE FINAL PRECITIONS
 #ensembleDF = pd.DataFrame([stacked_train_pred,xgb_train_pred,lgb_train_pred,keras_train]).transpose()
 #ensemblePredict = pd.DataFrame([stacked_pred,xgb_pred,lgb_pred,keras_pred]).transpose()
@@ -319,4 +322,5 @@ sub['Id'] = test_ID
 sub['SalePrice'] = ensemble
 sub.to_csv('submission.csv',index=False)
 #np.expm1(11.752738)-np.expm1(11.752738-0.115)
+# np.expm1(11.752738)-np.expm1(11.752738-0.10626)
 #sub['SalePrice'].mean()
