@@ -183,3 +183,21 @@ for max_depth_candidate, subsample_candidate in product(max_depth_grid, subsampl
 print(results)
 
 #BLENDING
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor
+part_1, part_2 = train_test_split(train, test_size=0.5, random_state=123)
+gb = GradientBoostingRegressor().fit(part_1[features], part_1.fare_amount)
+rf = RandomForestRegressor().fit(part_1[features], part_1.fare_amount)
+# Make predictions on the Part 2 data
+part_2['gb_pred'] = gb.predict(part_2[features])
+part_2['rf_pred'] = rf.predict(part_2[features])
+
+# Make predictions on the test data
+test['gb_pred'] = gb.predict(test[features])
+test['rf_pred'] = rf.predict(test[features])
+
+from sklearn.linear_model import LinearRegression
+lr = LinearRegression(fit_intercept=False)
+lr.fit(part_2[['gb_pred', 'rf_pred']], part_2.fare_amount)
+test['stacking'] = lr.predict(test[['gb_pred', 'rf_pred']])
+print(lr.coef_)
